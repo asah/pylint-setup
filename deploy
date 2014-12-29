@@ -1,0 +1,81 @@
+#!/usr/bin/perl
+#
+# sample deploy script that integrates pylint
+# I am *so* sorry this is in perl - asah@midgard.net
+
+use URI::Escape;
+
+if ($#ARGV == -1) {
+    print "Usage: $0 <destination>\n";
+    exit(1);
+}
+
+$MINSCORE = 10.0;
+
+$DEST = pop(@ARGV);
+
+if ($DEST eq "production" && !$force) {
+    my $found = 0;
+    open(FH, "git status|");
+    while (<FH>) {
+	if (/On branch (.+)/ && $1 ne "production") {
+	    $found = 1;
+	    print "fatal: refusing to push from production branch: '$1'\n\n";
+	}
+	if (/Untracked files:/) {
+	    $found = 1;
+	    print "fatal: refusing to push with untracked files, consider extending .gitignore\n\n";
+	}
+	if ($found) {
+	    print;
+	}
+    }
+    if ($found) {
+	exit(1);
+    }
+}
+
+if (!$force) {
+  print "running pylint...\n";
+  my $pylint_rc = "";
+  $res = `pylint --version --rcfile NOSUCHFILE`;  # <1.0 rcfile crashes on 1.1+
+  $error = 0;
+  $pylint_mtime = 0;
+  my %scores;
+  if (-f ".pylint") {
+      $pylint_mtime = (stat(".pylint"))[9];
+      open(FH, ".pylint");
+      while (<FH>) {
+  	chomp;
+  	#print ".pylint: $_\n";
+  	/^([0-9.]+) (.+)$/;
+  	$scores{$2} = $1 if $1 == "10.00";
+      }
+      close FH;
+  }
+
+  open(FH, ">.pylint");
+  my @files;
+  while (<*.py>) {
+      chomp;
+      if ((stat($_))[9] > $pylint_mtime || !defined($scores{$_})) {
+  	$res = `pylint $pylint_rc --disable=W0511 $_ 2>&1`;
+  	($scores{$_}) = ($res =~ /Your code has been rated at ([0-9.-]+)/);
+      }
+      $line = $scores{$_}." $_\n";
+      print $line;
+      print FH $line;
+      $error = 1 if $scores{$_} < $MINSCORE;
+      push @files, $_;
+  }
+  close FH;
+  
+  if ($error) {
+    print "some files scored below $MINSCORE -- please fix them.\n";
+    exit(1);
+  }
+}
+
+#
+# regular deploy script goes here
+#

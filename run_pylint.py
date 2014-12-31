@@ -35,7 +35,7 @@ while True:
 if score < MINSCORE:
     print "scored %.2f which is less than %.2f - aborting" % (score, MINSCORE)
     sys.exit(3)
-if num_errors < MAXERRORS:
+if num_errors > MAXERRORS:
     print "%d errors which is more than %d - aborting" % (num_errors, MAXERRORS)
     sys.exit(4)
 

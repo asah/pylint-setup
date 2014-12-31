@@ -5,10 +5,12 @@
 #
 import sys, re, subprocess, os
 
-MINSCORE = 10.0
-MAXERRORS = 0
+MINSCORE = 9.0
+MAXERRORS = 40
     
 command = 'pylint --rcfile=pylintrc --disable=W0511,W9911,W9913 `find webui python_saml libs -name "*py"`'
+
+command_if_successful = "hg push"
 
 # unbuffer *both* me and the pylint subprocess!
 os.environ['PYTHONUNBUFFERED'] = '1'
@@ -36,3 +38,6 @@ if score < MINSCORE:
 if num_errors < MAXERRORS:
     print "%d errors which is more than %d - aborting" % (num_errors, MAXERRORS)
     sys.exit(4)
+
+print "pylint successful - calling "+command_if_successful
+subprocess.call(command_if_successful, shell=True)
